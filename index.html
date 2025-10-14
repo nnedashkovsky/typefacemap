@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Карта шрифта — генератор</title>
+  <meta name="description" content="Карта шрифта по субъективным характеристикам. Фиксированные оси, настраиваемые значения. Экспорт PNG." />
+  <style>
+    :root{ --bg:#0b0d10; --panel:#12161b; --ink:#d7e1ea; --muted:#92a2b6; --accent:#6ea8fe; --grid:#2a3440; --radius:16px; --gap:14px; --shadow:0 8px 24px rgba(0,0,0,.35); }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0;background:radial-gradient(1200px 800px at 20% -10%, #12161b 0%, #0b0d10 60%), var(--bg);color:var(--ink);font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica Neue,Arial}
+    .wrap{display:grid;grid-template-columns: 420px 1fr; gap:var(--gap); padding:var(--gap); max-width:1280px; margin:0 auto}
+    .panel{background:var(--panel); border:1px solid #1b2129; border-radius:var(--radius); box-shadow:var(--shadow)}
+    header{grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; padding:12px 14px}
+    .actions{display:flex; gap:10px}
+    button{cursor:pointer; border:1px solid #273041; background:#111722; color:var(--ink); border-radius:10px; padding:8px 10px; font-weight:600}
+    button:hover{border-color:#344056}
+    .controls{padding:14px}
+    .group{padding:10px 12px; border:1px dashed #2a3340; border-radius:12px; margin-bottom:12px}
+    .row{display:grid; grid-template-columns: 1fr 72px; gap:10px; align-items:center; padding:8px 0}
+    .row label{display:block; font-size:12px; color:var(--muted); margin-bottom:6px}
+    .row input[type="range"]{width:100%}
+    .row input[type="number"]{width:100%; padding:6px 8px; background:#0f1318; border:1px solid #202732; color:var(--ink); border-radius:8px}
+    .hint{font-size:12px; color:var(--muted)}
+    .stage{padding:10px}
+    .canvas-wrap{padding:10px}
+    canvas{display:block; width:100%; height:auto; border-radius:12px; background:#0e1319}
+    @media (max-width: 980px){ .wrap{grid-template-columns:1fr} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="panel">
+      <div class="title">Карта шрифта</div>
+      <div class="actions">
+        <button id="btnPNG">Скачать PNG</button>
+        <a id="btnReset" class="btn" href="#" style="text-decoration:none"><button>Сброс</button></a>
+      </div>
+    </header>
+
+    <aside class="panel controls">
+      <div class="group">
+        <div class="hint">Оси фиксированы. Вводите значения 0–100. Ползунок длинный, справа — короткое поле для точного ввода.</div>
+      </div>
+      <div id="controls"></div>
+    </aside>
+
+    <section class="panel stage">
+      <div class="canvas-wrap">
+        <canvas id="c" width="1600" height="900" aria-label="Схема"></canvas>
+      </div>
+    </section>
+  </div>
+
+<script>
+(function(){
+  // Фиксированные оси
+  const paramsSpec = [
+    {key:'strict',    label:'Строгость',       val:60},
+    {key:'joy',       label:'Радостность',     val:40},
+    {key:'restraint', label:'Сдержанность',    val:65},
+    {key:'warmth',    label:'Дружелюбие',      val:55},
+    {key:'express',   label:'Экспрессивность', val:35},
+    {key:'soft',      label:'Мягкость',        val:45},
+    {key:'geo',       label:'Геометричность',  val:50},
+    {key:'read',      label:'Читаемость',      val:70}
+  ];
+
+  const $controls = document.getElementById('controls');
+  const $c = document.getElementById('c');
+  const ctx = $c.getContext('2d');
+  const $png = document.getElementById('btnPNG');
+  const $reset = document.getElementById('btnReset');
+
+  const state = Object.fromEntries(paramsSpec.map(p => [p.key, p.val]));
+
+  // Построение: длинный ползунок + короткое число справа
+  paramsSpec.forEach(p => {
+    const box = document.createElement('div');
+    box.className = 'group';
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `
+      <div style="grid-column:1 / -1">
+        <label for="${p.key}">${p.label} <span class="hint mono" id="lab-${p.key}"></span></label>
+      </div>
+      <input type="range" id="${p.key}" min="0" max="100" step="1" value="${state[p.key]}">
+      <input type="number" id="num-${p.key}" min="0" max="100" step="1" value="${state[p.key]}">`;
+    box.appendChild(row);
+    $controls.appendChild(box);
+
+    const range = row.querySelector('#'+p.key);
+    const num   = row.querySelector('#num-'+p.key);
+    const lab   = row.querySelector('#lab-'+p.key);
+
+    function sync(v){
+      let x = Number(v); if(!Number.isFinite(x)) x = 0;
+      x = Math.max(0, Math.min(100, x));
+      state[p.key] = x;
+      range.value = x; num.value = x; lab.textContent = String(x);
+      draw();
+    }
+    range.addEventListener('input', e => sync(e.target.value));
+    num.addEventListener('input',   e => sync(e.target.value));
+    sync(state[p.key]);
+  });
+
+  $png.addEventListener('click', ()=>{
+    const link = document.createElement('a');
+    link.download = 'font-map.png';
+    link.href = $c.toDataURL('image/png');
+    link.click();
+  });
+  $reset.addEventListener('click', (e)=>{ e.preventDefault(); location.reload(); });
+
+  function draw(){
+    const W = $c.width, H = $c.height; const pad = 36;
+    ctx.save(); ctx.clearRect(0,0,W,H);
+
+    // bg
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0b0f14'); g.addColorStop(1,'#0c1117');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    // grid
+    //ctx.strokeStyle = '#1d2733'; ctx.lineWidth = 1;
+    //for(let y=pad; y<H-pad; y+=40){ line( pad, y, W-pad, y ); }
+    //for(let x=pad; x<W-pad; x+=40){ line( x, pad, x, H-pad ); }
+
+    const left = pad+8, top = pad+8, right = W - pad - 8, bottom = H - pad - 8;
+    const colW = Math.min(560, Math.max(360, W*0.32));
+
+    // Радар по центру правой колонки
+    const rcx = left + colW + (right - (left + colW)) * 0.58;
+    const rcy = top + (bottom-top)*0.50;
+    const r = Math.min( (right - (left + colW)) * 0.36, (bottom-top) * 0.42 );
+    drawRadar(rcx, rcy, r);
+
+    // Легенда слева
+    drawLegend(left, bottom - 360, colW - 16, 220);
+    ctx.restore();
+  }
+
+  function drawLegend(x,y,w,h){
+  // Крупные подписи + динамический отступ под самую длинную метку
+  //roundRect(x,y,w,h,10,'#111720','#223041');
+
+  const rows = [
+    {lab:'Строгость', key:'strict'},
+    {lab:'Радостность', key:'joy'},
+    {lab:'Сдержанность', key:'restraint'},
+    {lab:'Дружелюбие', key:'warmth'},
+    {lab:'Экспрессивность', key:'express'},
+    {lab:'Мягкость', key:'soft'},
+    {lab:'Геометричность', key:'geo'},
+    {lab:'Читаемость', key:'read'}
+  ];
+
+  // 2–3× крупнее
+  const labelFont = '600 24px system-ui';
+  const valueFont = '16px system-ui';
+  const titleFont = '700 14px system-ui';
+  const lh = 32;                 // межстрочный для крупных подписей
+  const padX = 12;
+  const gap = 20;                 // уменьшённый зазор между меткой и полоской
+  const valuePadRight = 14;      // место справа под числа
+
+  // ширина самой длинной подписи
+  ctx.font = labelFont; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  let maxLabW = 0;
+  for (const r of rows) maxLabW = Math.max(maxLabW, ctx.measureText(r.lab).width);
+
+  // заголовок
+  let yy = y + 22;
+  ctx.font = titleFont; ctx.fillStyle = '#d7e1ea';
+  ctx.fillText(' ', x+padX, yy);
+  yy += 10;
+
+  // строки
+  for (const r of rows){
+    yy += lh;
+
+    const v = (typeof state !== 'undefined' && r.key in state) ? state[r.key] : 0;
+
+    // подпись
+    ctx.font = labelFont; ctx.fillStyle = '#d7e1ea'; ctx.textAlign = 'left';
+    ctx.fillText(r.lab, x+padX, yy);
+
+    // прогресс-бар без наложений
+    const bx = x + padX + maxLabW + gap;
+    const bw = w - (bx - x) - valuePadRight - 6;
+    const bh = 12;
+    const by = yy - 9; // визуальное центрирование
+
+    roundRect(bx, by, bw, bh, 6, '#0f141b', '#223041');
+    const fill = ctx.createLinearGradient(bx,0,bx+bw,0);
+    fill.addColorStop(0,'#6ea8fe'); fill.addColorStop(1,'#6ee7b7');
+    roundRect(bx, by, Math.max(4, bw*(v/100)), bh, 6, fill, '#223041');
+
+    // значение справа
+    ctx.font = valueFont; ctx.fillStyle = '#d7e1ea'; ctx.textAlign = 'right';
+    ctx.fillText(String(v), x + w - valuePadRight, yy);
+    ctx.textAlign = 'left';
+  }
+}
+
+
+  function drawRadar(cx, cy, R){
+    const axes = paramsSpec.map(p=> p.key);
+    const N = axes.length; const levels = 5;
+
+    // grid circles
+    ctx.strokeStyle = '#213041'; ctx.lineWidth = 1;
+    for(let i=1;i<=levels;i++){ circ(cx, cy, (R/levels)*i); }
+
+    // axes + labels
+    paramsSpec.forEach((p, i)=>{
+      const ang = -Math.PI/2 + i * 2*Math.PI / N;   // старт сверху
+      const x = cx + R * Math.cos(ang), y = cy + R * Math.sin(ang);
+      ctx.strokeStyle = '#223041'; line(cx, cy, x, y);
+      const lx = cx + (R+20) * Math.cos(ang); const ly = cy + (R+20) * Math.sin(ang);
+      ctx.fillStyle = '#92a2b6'; ctx.font = '12px system-ui';
+      ctx.textAlign = Math.cos(ang)>0.2? 'left' : (Math.cos(ang)<-0.2? 'right' : 'center');
+      ctx.textBaseline = Math.sin(ang)>0.2? 'top' : (Math.sin(ang)<-0.2? 'bottom' : 'middle');
+      ctx.fillText(p.label, lx, ly);
+    });
+
+    // polygon
+    ctx.beginPath();
+    paramsSpec.forEach((p, i)=>{
+      const t = (state[p.key]||0)/100; const ang = -Math.PI/2 + i * 2*Math.PI / N; const rad = 10 + t * (R-10);
+      const x = cx + rad * Math.cos(ang), y = cy + rad * Math.sin(ang);
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    const fill = ctx.createLinearGradient(cx-R,cy-R,cx+R,cy+R);
+    fill.addColorStop(0,'rgba(110,168,254,0.35)'); fill.addColorStop(1,'rgba(110,231,183,0.35)');
+    ctx.fillStyle = fill; ctx.strokeStyle = '#6ea8fe'; ctx.lineWidth = 2;
+    ctx.fill(); ctx.stroke();
+  }
+
+  // helpers
+  function roundRect(x,y,w,h,r,fill,stroke){ ctx.beginPath(); const rr = Math.min(r,w/2,h/2); ctx.moveTo(x+rr,y); ctx.arcTo(x+w,y,x+w,y+h,rr); ctx.arcTo(x+w,y+h,x,y+h,rr); ctx.arcTo(x,y+h,x,y,rr); ctx.arcTo(x,y,x+w,y,rr); ctx.closePath(); if(fill){ctx.fillStyle=fill;ctx.fill();} if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke();} }
+  function line(x1,y1,x2,y2){ ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke(); }
+  function circ(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke(); }
+  const mono = "ui-monospace, SFMono-Regular, Menlo, Consolas, Liberation Mono, monospace";
+})();
+</script>
+</body>
+</html>
