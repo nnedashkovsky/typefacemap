@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Карта шрифта — генератор</title>
-  <meta name="description" content="Карта шрифта по субъективным характеристикам. Фиксированные оси, настраиваемые значения. Экспорт PNG." />
+  <title>Typeface map based on subjective characteristics</title>
+  <meta name="description" content="Typeface map based on subjective characteristics Export PNG." />
   <style>
     :root{ --bg:#0b0d10; --panel:#12161b; --ink:#d7e1ea; --muted:#92a2b6; --accent:#6ea8fe; --grid:#2a3440; --radius:16px; --gap:14px; --shadow:0 8px 24px rgba(0,0,0,.35); }
     *{box-sizing:border-box}
@@ -32,16 +32,16 @@
 <body>
   <div class="wrap">
     <header class="panel">
-      <div class="title">Карта шрифта</div>
+      <div class="title">Typeface map based on subjective characteristics</div>
       <div class="actions">
-        <button id="btnPNG">Скачать PNG</button>
-        <a id="btnReset" class="btn" href="#" style="text-decoration:none"><button>Сброс</button></a>
+        <button id="btnPNG">download PNG</button>
+        <a id="btnReset" class="btn" href="#" style="text-decoration:none"><button>reset values</button></a>
       </div>
     </header>
 
     <aside class="panel controls">
       <div class="group">
-        <div class="hint">Оси фиксированы. Вводите значения 0–100. Ползунок длинный, справа — короткое поле для точного ввода.</div>
+        <div class="hint">Enter values from 0 to 100 for each parameter.</div>
       </div>
       <div id="controls"></div>
     </aside>
@@ -56,16 +56,16 @@
 <script>
 (function(){
   // Фиксированные оси
-  const paramsSpec = [
-    {key:'strict',    label:'Строгость',       val:60},
-    {key:'joy',       label:'Радостность',     val:40},
-    {key:'restraint', label:'Сдержанность',    val:65},
-    {key:'warmth',    label:'Дружелюбие',      val:55},
-    {key:'express',   label:'Экспрессивность', val:35},
-    {key:'soft',      label:'Мягкость',        val:45},
-    {key:'geo',       label:'Геометричность',  val:50},
-    {key:'read',      label:'Читаемость',      val:70}
-  ];
+const paramsSpec = [
+  {key:'Neutrality',    label:'Neutrality',       desc:'doesn’t express a strong personality; suitable for various contexts', val:50},
+  {key:'Futuristic',       label:'Futuristic',     desc:'conveys a sense of modernity and technological character', val:50},
+  {key:'Elegance', label:'Elegance',    desc:'refined, graceful shapes with a sense of balance', val:50},
+  {key:'Friendliness',    label:'Friendliness',      desc:'forms that evoke warmth and trust', val:50},
+  {key:'Legibility',   label:'Legibility', desc:'ease of reading at different sizes and conditions', val:50},
+  {key:'Experimental',      label:'Experimental',        desc:'unconventional design that breaks traditional norms', val:50},
+  {key:'Seriousness',       label:'Seriousness',  desc:'restrained, formal character without decorative excess', val:50},
+  {key:'Mechanistic',      label:'Mechanistic',      desc:'conveys precision, structure, and an artificial or constructed feel', val:50}
+];
 
   const $controls = document.getElementById('controls');
   const $c = document.getElementById('c');
@@ -75,36 +75,37 @@
 
   const state = Object.fromEntries(paramsSpec.map(p => [p.key, p.val]));
 
-  // Построение: длинный ползунок + короткое число справа
-  paramsSpec.forEach(p => {
-    const box = document.createElement('div');
-    box.className = 'group';
-    const row = document.createElement('div');
-    row.className = 'row';
-    row.innerHTML = `
-      <div style="grid-column:1 / -1">
-        <label for="${p.key}">${p.label} <span class="hint mono" id="lab-${p.key}"></span></label>
-      </div>
-      <input type="range" id="${p.key}" min="0" max="100" step="1" value="${state[p.key]}">
-      <input type="number" id="num-${p.key}" min="0" max="100" step="1" value="${state[p.key]}">`;
-    box.appendChild(row);
-    $controls.appendChild(box);
+  // Построение: длинный ползунок + короткое число справа + описание
+paramsSpec.forEach(p => {
+  const box = document.createElement('div');
+  box.className = 'group';
+  const row = document.createElement('div');
+  row.className = 'row';
+  row.innerHTML = `
+    <div style="grid-column:1 / -1">
+      <label for="${p.key}">${p.label} <span class="hint mono" id="lab-${p.key}"></span></label>
+      <div class="hint" style="font-size:11px; color:#6c7a89; margin-top:2px;">${p.desc}</div>
+    </div>
+    <input type="range" id="${p.key}" min="0" max="100" step="1" value="${p.val}">
+    <input type="number" id="num-${p.key}" min="0" max="100" step="1" value="${p.val}">`;
+  box.appendChild(row);
+  $controls.appendChild(box);
 
-    const range = row.querySelector('#'+p.key);
-    const num   = row.querySelector('#num-'+p.key);
-    const lab   = row.querySelector('#lab-'+p.key);
+  const range = row.querySelector('#'+p.key);
+  const num   = row.querySelector('#num-'+p.key);
+  const lab   = row.querySelector('#lab-'+p.key);
 
-    function sync(v){
-      let x = Number(v); if(!Number.isFinite(x)) x = 0;
-      x = Math.max(0, Math.min(100, x));
-      state[p.key] = x;
-      range.value = x; num.value = x; lab.textContent = String(x);
-      draw();
-    }
-    range.addEventListener('input', e => sync(e.target.value));
-    num.addEventListener('input',   e => sync(e.target.value));
-    sync(state[p.key]);
-  });
+  function sync(v){
+    let x = Number(v); if(!Number.isFinite(x)) x = 0;
+    x = Math.max(0, Math.min(100, x));
+    state[p.key] = x;
+    range.value = x; num.value = x; lab.textContent = String(x);
+    draw();
+  }
+  range.addEventListener('input', e => sync(e.target.value));
+  num.addEventListener('input',   e => sync(e.target.value));
+  sync(p.val);
+});
 
   $png.addEventListener('click', ()=>{
     const link = document.createElement('a');
@@ -147,24 +148,24 @@
   //roundRect(x,y,w,h,10,'#111720','#223041');
 
   const rows = [
-    {lab:'Строгость', key:'strict'},
-    {lab:'Радостность', key:'joy'},
-    {lab:'Сдержанность', key:'restraint'},
-    {lab:'Дружелюбие', key:'warmth'},
-    {lab:'Экспрессивность', key:'express'},
-    {lab:'Мягкость', key:'soft'},
-    {lab:'Геометричность', key:'geo'},
-    {lab:'Читаемость', key:'read'}
+    {lab:'Neutrality', key:'Neutrality'},
+    {lab:'Futuristic', key:'Futuristic'},
+    {lab:'Elegance', key:'Elegance'},
+    {lab:'Friendliness', key:'Friendliness'},
+    {lab:'Legibility', key:'Legibility'},
+    {lab:'Experimental', key:'Experimental'},
+    {lab:'Seriousness', key:'Seriousness'},
+    {lab:'Mechanistic', key:'Mechanistic'}
   ];
 
   // 2–3× крупнее
   const labelFont = '600 24px system-ui';
   const valueFont = '16px system-ui';
   const titleFont = '700 14px system-ui';
-  const lh = 12;                 // межстрочный для крупных подписей
+  const lh = 32;                 // межстрочный для крупных подписей
   const padX = 12;
   const gap = 20;                 // уменьшённый зазор между меткой и полоской
-  const valuePadRight = 114;      // место справа под числа
+  const valuePadRight = 14;      // место справа под числа
 
   // ширина самой длинной подписи
   ctx.font = labelFont; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -189,7 +190,7 @@
 
     // прогресс-бар без наложений
     const bx = x + padX + maxLabW + gap;
-    const bw = w - (bx - x) - valuePadRight - 16;
+    const bw = w - (bx - x) - valuePadRight - 60;
     const bh = 12;
     const by = yy - 9; // визуальное центрирование
 
